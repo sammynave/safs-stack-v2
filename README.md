@@ -1,3 +1,15 @@
+# Plan
+
+1. implement sqlite interfaces
+  1. memory
+    - sync
+  2. opfs
+    - event based to free up the UI as quick as possible.
+    - no `async/await`.
+2. implement syncing protocol
+3. syncing end-to-end
+4. ivm cache layer - instant writes and UI updates
+
 
 previous:
 - https://github.com/sammynave/safs-stack-v1

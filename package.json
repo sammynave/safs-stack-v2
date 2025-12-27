@@ -75,5 +75,8 @@
 	},
 	"keywords": [
 		"svelte"
-	]
+	],
+	"dependencies": {
+		"@sqlite.org/sqlite-wasm": "3.50.4-build1"
+	}
 }
