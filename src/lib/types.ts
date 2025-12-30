@@ -1,7 +1,6 @@
 type Column = {
 	type: 'text' | 'integer' | 'boolean';
 	default?: string | number | boolean;
-	primaryKey?: boolean;
 };
 
 export type Tables = Record<
@@ -9,6 +8,7 @@ export type Tables = Record<
 	{
 		name: string;
 		columns: Record<string, Column>;
+		primaryKey: string;
 	}
 >;
 

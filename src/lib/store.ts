@@ -1,56 +1,85 @@
+import { Ivm } from './ivm.ts';
+import { SqlClient } from './sql-client.ts';
+import { Syncer } from './syncer.ts';
+
 export class Store {
-	cache;
-	eventHandlers;
-	db;
-	events;
+	static async create({ path, type, schema }) {
+		const { tables, events, eventHandlers } = schema;
 
-	constructor({ tables, eventHandlers, type, path, events }) {
-		this.cache = new Ivm(tables);
-		this.db = new SqlClient({ path, backend: type, tables });
-		this.eventHandlers = eventHandlers;
-		this.events = events;
+		const db = new SqlClient({ path, backend: type, schema: tables });
+		await db.run('CREATE TABLE IF NOT EXISTS todos(id TEXT UNIQUE, completed BOOL, text TEXT);');
 
-		this.syncer = new Syncer({
+		// For now, cache all tables
+		const cache = await Ivm.using({ tables, db });
+
+		const syncer = new Syncer({
 			transport: 'ws',
 			endpoint: '/sync',
 			// Process events from other nodes
 			onIncoming: (event) => {
-				const change = this.eventHandlers[event.name](event.payload);
-				this.db.emit(change, {
-					onSuccess: (_result) => {
-						this.cache.exec(change);
+				const sql = eventHandlers[event.name](this, event.payload);
+				db.emit(sql, [], {
+					success: (_result) => {
+						cache.exec(changeQuery);
 					},
-					onError: (err) => {
+					failure: (err) => {
 						throw Error(`Error recieving sync emit: ${err}`);
 					}
 				});
 			}
 		});
+
+		return new Store({ db, cache, eventHandlers, events, syncer });
+	}
+
+	cache;
+	eventHandlers;
+	db;
+	events;
+	syncer;
+
+	constructor({ db, cache, eventHandlers, events, syncer }) {
+		this.db = db;
+		this.cache = cache;
+		this.syncer = syncer;
+		this.eventHandlers = eventHandlers;
+		this.events = events;
 	}
 
 	// process events from this node
-	commit(event, onSuccess, onError) {
+	commit(
+		event,
+		onSuccess: (result: unknown) => undefined = (_result) => undefined,
+		onError: (error: unknown) => undefined = (_error) => undefined
+	) {
 		// match event to materailizer, instantiate a query
-		const change = this.eventHandlers[event.name](event.payload);
+		const sql = this.eventHandlers[event.name](this, event.payload);
 
 		// update the local UI optimistically and instantly
-		this.cache.exec(change);
-
+		// maybe this eventually looks something like this
+		// const rollbackFn = this.cache.exec(query);
+		const rollbackFn = () => undefined;
 		// persist the event to the db
-		this.db.emit(change, {
-			onSuccess: (result) => {
+		console.time(`${event.payload.id}`);
+		this.db.emit(sql, [], {
+			success: (result) => {
+				console.timeEnd(`${event.payload.id}`);
 				// `result` should include the metadata needed to sync
 				// nodeId, hlc, etc...
 				// look to https://github.com/sammynave/habits
 
-				if (this.events[event.name].sync) {
+				if (event.synced) {
 					this.syncer.sync(event, result);
 				}
 				onSuccess(result);
 			},
 			// if it fails, roll the cache and UI back
-			onError: (err) => {
-				this.cache.rollback(query);
+			failure: (err) => {
+				// @TODO need to figure out how to rollback add/remove/update in IVM
+				// would be nice if it could be computed without looking up and storing
+				// previous value. `update` and `remove` are the tricky ones. `update` and `remove`
+				// are the tricky ones. maybe this.cache.exec(query) returns {prev, current} or something?
+				rollbackFn();
 				onError(err);
 			}
 		});

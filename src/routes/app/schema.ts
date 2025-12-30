@@ -1,26 +1,33 @@
-import { Query } from '$lib/query.js';
-import { Store } from '$lib/store.js';
+import type { Store } from '$lib/store.ts';
 import type { Tables } from '$lib/types.js';
 
 // essentialy DB schema
 // this should follow StandardSchema
 // https://standardschema.dev
-export const tables: Tables = {
+const tables: Tables = {
 	todos: {
 		name: 'todos',
 		columns: {
-			id: { type: 'text', primaryKey: true },
+			id: { type: 'text' },
 			text: { type: 'text', default: '' },
 			completed: { type: 'boolean', default: false }
-		}
+		},
+		primaryKey: 'id'
 		// @TODO indexes at some point
 	}
 };
 
+function event({ name, schema, synced }) {
+	return (payload) => {
+		// assert(validate(payload, schema))
+		return { name, payload, synced, schema };
+	};
+}
+
 // user created
-export const events = {
-	todoCreated: {
-		name: 'v1.TodosCreated',
+const events = {
+	todoCreated: event({
+		name: 'v1.TodoCreated',
 		schema: {
 			// this should follow StandardSchema
 			// https://standardschema.dev
@@ -28,41 +35,62 @@ export const events = {
 			text: 'string'
 		},
 		synced: true
-	},
-	todoCompleted: {
+	}),
+	todoCompleted: event({
 		name: 'v1.TodoCompleted',
 		schema: { id: 'string' },
 		synced: true
-	},
-	todoUncompleted: {
+	}),
+	todoUncompleted: event({
 		name: 'v1.TodoUncompleted',
 		schema: { id: 'string' },
 		synced: true
-	},
-	todoDeleted: {
+	}),
+	todoDeleted: event({
 		name: 'v1.TodoDeleted',
 		schema: { id: 'string', deletedAt: 'date' },
 		synced: true
-	}
+	})
 };
 
 // user created
 const eventHandlers = {
-	'v1.TodoCreated': ({ id, text }: (typeof events)['todoCreated']['schema']) =>
-		Query.insert('todos', { id, text, completed: false }),
-	'v1.TodoCompleted': ({ id }: (typeof events)['todoCompleted']['schema']) =>
-		Query.update('todos', { completed: true }).where({ id }),
-	'v1.TodoUncompleted': ({ id }: (typeof events)['todoUncompleted']['schema']) =>
-		Query.update('todos', { completed: false }).where({ id }),
-	'v1.TodoDeleted': ({ id, deletedAt }: (typeof events)['todoDeleted']['schema']) =>
-		Query.update('todos', { deletedAt }).where({ id })
+	'v1.TodoCreated': (
+		store: Store,
+		{ id, text }: ReturnType<(typeof events)['todoCreated']>['schema']
+	) => {
+		// @TODO we will want some abstraction over cache and persistent structures
+		// like:
+		//  `Query.using(store).insert({id, text, completed:false}).into('todos')`
+		// then the query will call the correct IVM methods and SQlite methods
+		store.cache.tables.todos.add({ id, text, completed: false });
+		return `INSERT INTO todos (id, text, completed) VALUES ('${id}', '${text}', ${false});`;
+	},
+	'v1.TodoCompleted': (
+		store: Store,
+		{ id }: ReturnType<(typeof events)['todoCompleted']>['schema']
+	) => {
+		store.cache.tables.todos.update({ id }, { completed: true });
+		return `UPDATE todos SET completed = 1 WHERE id = '${id}';`;
+	},
+	'v1.TodoUncompleted': (
+		store: Store,
+		{ id }: ReturnType<(typeof events)['todoUncompleted']>['schema']
+	) => {
+		store.cache.tables.todos.update({ id }, { completed: false });
+		return `UPDATE todos SET completed = 0 WHERE id = '${id}';`;
+	},
+	'v1.TodoDeleted': (
+		store: Store,
+		{ id }: ReturnType<(typeof events)['todoDeleted']>['schema']
+	) => {
+		store.cache.tables.todos.remove({ id });
+		return `DELETE FROM todos WHERE id = '${id}';`;
+	}
 };
 
-// user called
-export const store = new Store({
+export const schema = {
 	tables,
-	eventHandlers,
-	type: 'worker',
-	path: 'safs-db',
-	events
-});
+	events,
+	eventHandlers
+};
