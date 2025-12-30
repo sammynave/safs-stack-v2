@@ -1,3 +1,40 @@
+# Constraints and decisions
+
+## UI updates in < 8ms => 120fps
+
+to accomplish this:
+  1. only IVM work done in UI thread
+  2. reads are read from IVM system
+  3. writes are events sent to worker
+  4. SQLite persists to OPFS
+
+
+
+
+# Flow
+
+1. user defines schema
+2. user defines events
+3. user defines mutatators
+4. user creates or loads db
+5. user defines queries
+6. queries run and populate IVM data
+7. user sends event (TodoCreated with payload)
+8. IVM intercepts event and runs mutator on data
+9. UI updates instantly
+10. worker recieves event and runs mutator on database
+  - success: returns new row
+    1. IVM inserts (should be a noop since we got this update before the commit)
+  - error: returns error message
+    1. IVM rollsback change
+    2. UI display error message
+
+
+UI
+mutations done in worker
+  -> opfs sqlite -> event sent to UI thread -> IVM updates
+
+
 # Plan
 
 1. implement sqlite interfaces
