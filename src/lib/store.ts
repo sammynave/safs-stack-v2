@@ -7,6 +7,8 @@ export class Store {
 		const { tables, events, eventHandlers } = schema;
 
 		const db = new SqlClient({ path, backend: type, schema: tables });
+
+		// @TODO schema.sql and migrations
 		await db.run('CREATE TABLE IF NOT EXISTS todos(id TEXT UNIQUE, completed BOOL, text TEXT);');
 
 		// For now, cache all tables
@@ -61,6 +63,11 @@ export class Store {
 		const rollbackFn = () => undefined;
 		// persist the event to the db
 		console.time(`${event.payload.id}`);
+
+		// @TODO addBulk in +page.svelte is contrived and probably
+		// doesn't reflect realworld apps but we should consider
+		// queuing and batching changes here. maybe in the `emit`
+		// method we can collect events before sending them to the worker
 		this.db.emit(sql, [], {
 			success: (result) => {
 				console.timeEnd(`${event.payload.id}`);
