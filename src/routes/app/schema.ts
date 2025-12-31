@@ -52,7 +52,6 @@ const events = {
 		synced: true
 	})
 };
-// let c = 0;
 // user created
 const eventHandlers = {
 	'v1.TodoCreated': (
@@ -63,13 +62,8 @@ const eventHandlers = {
 		// like:
 		//  `Query.using(store).insert({id, text, completed:false}).into('todos')`
 		// then the query will call the correct IVM methods and SQlite methods
-		// c++;
 		store.cache.tables.todos.add({ id, text, completed: false });
-		// if (c === 2) {
-		// 	return `INSERT INTO todos (id, text, completed) VALUES ('${id}', ${text}, ${false});`;
-		// } else {
 		return `INSERT INTO todos (id, text, completed) VALUES ('${id}', '${text}', ${false});`;
-		// }
 	},
 	'v1.TodoCompleted': (
 		store: Store,

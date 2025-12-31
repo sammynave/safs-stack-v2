@@ -60,7 +60,6 @@ export class Store {
 		// update the local UI optimistically and instantly
 		// maybe this eventually looks something like this
 		// const rollbackFn = this.cache.exec(query);
-		// @TODO this rollback doesn't really seem to work with the batch processing
 		const rollbackFn = () => this.cache.tables.todos.remove(event.payload);
 		// persist the event to the db
 		this.db.emit(sql, [], {
