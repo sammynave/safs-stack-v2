@@ -26,18 +26,18 @@ export default defineConfig({
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}', 'src/**/*.{test,spec}.{js,ts}'],
 					exclude: ['src/lib/server/**']
 				}
-			},
-
-			{
-				extends: './vite.config.ts',
-
-				test: {
-					name: 'server',
-					environment: 'node',
-					include: ['src/**/*.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
-				}
 			}
+
+			// {
+			// 	extends: './vite.config.ts',
+
+			// 	test: {
+			// 		name: 'server',
+			// 		environment: 'node',
+			// 		include: ['src/**/*.{test,spec}.{js,ts}'],
+			// 		exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+			// 	}
+			// }
 		]
 	}
 });

@@ -60,17 +60,11 @@ export class Store {
 		// update the local UI optimistically and instantly
 		// maybe this eventually looks something like this
 		// const rollbackFn = this.cache.exec(query);
-		const rollbackFn = () => undefined;
+		// @TODO this rollback doesn't really seem to work with the batch processing
+		const rollbackFn = () => this.cache.tables.todos.remove(event.payload);
 		// persist the event to the db
-		console.time(`${event.payload.id}`);
-
-		// @TODO addBulk in +page.svelte is contrived and probably
-		// doesn't reflect realworld apps but we should consider
-		// queuing and batching changes here. maybe in the `emit`
-		// method we can collect events before sending them to the worker
 		this.db.emit(sql, [], {
 			success: (result) => {
-				console.timeEnd(`${event.payload.id}`);
 				// `result` should include the metadata needed to sync
 				// nodeId, hlc, etc...
 				// look to https://github.com/sammynave/habits
