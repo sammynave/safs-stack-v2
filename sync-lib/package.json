@@ -1,0 +1,25 @@
+{
+  "name": "sync-lib",
+  "version": "0.0.1",
+  "description": "Framework-agnostic CRDT sync library for vanilla SQLite",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "sqlite",
+    "crdt",
+    "sync",
+    "offline-first",
+    "real-time"
+  ],
+  "dependencies": {
+    "nanoid": "^5.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.4.5"
+  }
+}
