@@ -71,6 +71,11 @@
 	}
 </script>
 
+<h3>todos</h3>
+<ul>
+	<li>batch `emit`s to the database</li>
+	<li>batch events to the other tabs so they can quickly update ivm</li>
+</ul>
 <button type="button" onclick={addTodo}>add todo</button>
 <button type="button" onclick={() => bulkAdd()}>bulk add</button>
 <div>todos: {count}</div>
