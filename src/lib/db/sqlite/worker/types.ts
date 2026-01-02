@@ -14,6 +14,11 @@ export interface ExecMessage extends WorkerMessageBase {
 	payload: ExecPayload;
 }
 
+export interface EmitExecMessage extends WorkerMessageBase {
+	type: 'emitExec';
+	payload: ExecPayload;
+}
+
 export interface ExecBatchMessage extends WorkerMessageBase {
 	type: 'execBatch';
 	payload: ExecBatchPayload;
@@ -39,29 +44,45 @@ export interface TransactionMessage extends WorkerMessageBase {
 	payload: TransactionPayload;
 }
 
+export interface GetChangesSinceMessage extends WorkerMessageBase {
+	type: 'getChangesSince';
+	payload: GetChangesSincePayload;
+}
+
+export interface MergeChangesMessage extends WorkerMessageBase {
+	type: 'mergeChanges';
+	payload: MergeChangesPayload;
+}
+
 export type WorkerMessage =
 	| InitMessage
 	| ExecMessage
+	| EmitExecMessage
 	| ExecBatchMessage
 	| ExportMessage
 	| ImportMessage
 	| DestroyMessage
-	| TransactionMessage;
+	| TransactionMessage
+	| GetChangesSinceMessage
+	| MergeChangesMessage;
 
 export interface WorkerResponseBase {
 	id: string;
 	success: boolean;
 	error?: string;
+	type?: WorkerMessageType;
 }
 
 export interface WorkerSuccessResponse<T> extends WorkerResponseBase {
 	success: true;
 	result: T;
+	type?: WorkerMessageType;
 }
 
 export interface WorkerErrorResponse extends WorkerResponseBase {
 	success: false;
 	error: string;
+	type?: WorkerMessageType;
 }
 
 export type WorkerResponse<T = unknown> = WorkerSuccessResponse<T> | WorkerErrorResponse;
@@ -69,11 +90,15 @@ export type WorkerResponse<T = unknown> = WorkerSuccessResponse<T> | WorkerError
 export type WorkerMessageType =
 	| 'init'
 	| 'exec'
+	| 'emit'
+	| 'emitExec'
 	| 'execBatch'
 	| 'export'
 	| 'import'
 	| 'destroy'
-	| 'transaction';
+	| 'transaction'
+	| 'getChangesSince'
+	| 'mergeChanges';
 
 export interface InitPayload {
 	databasePath: string;
@@ -87,6 +112,15 @@ export interface TransactionPayload extends Array<DriverStatement> {}
 
 export interface ImportPayload {
 	data: ArrayBuffer;
+}
+
+export interface GetChangesSincePayload {
+	since: number;
+}
+
+export interface MergeChangesPayload {
+	changes: Array<[string, string, string, unknown, number, number, string, number, number]>;
+	affectedTables: string[];
 }
 
 export interface ExportResult {

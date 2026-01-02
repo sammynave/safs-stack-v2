@@ -25,15 +25,6 @@ A framework-agnostic CRDT (Conflict-free Replicated Data Type) sync library for 
 └─────────────────────────────────────┘
 ```
 
-## Installation
-
-```bash
-npm install sync-lib
-# or
-pnpm add sync-lib
-# or
-yarn add sync-lib
-```
 
 ## Quick Start
 

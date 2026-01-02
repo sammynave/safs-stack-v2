@@ -8,12 +8,54 @@ import type {
 	TransactionPayload,
 	WorkerErrorResponse,
 	WorkerMessage,
-	WorkerSuccessResponse
+	WorkerSuccessResponse,
+	GetChangesSincePayload,
+	MergeChangesPayload
 } from './types.ts';
 
 let sqlite: SQLite | undefined;
 let db: SQLiteDatabase | undefined;
+let dbConnection: any | undefined;
 let isReady = false;
+
+// Create database adapter for CRDT
+function createDatabaseAdapter(database: SQLiteDatabase): any {
+	return {
+		async exec(sql: string, params?: unknown[]) {
+			const result: RawResultData = { rows: [], columns: [] };
+			const rows = database.exec({
+				rowMode: 'array',
+				sql,
+				bind: params || [],
+				returnValue: 'resultRows',
+				columnNames: result.columns
+			});
+			result.rows = rows;
+			return result;
+		},
+		async execBatch(statements: Array<{ sql: string; params?: unknown[] }>) {
+			return database.transaction('IMMEDIATE', (db) => {
+				const results = [];
+				for (const stmt of statements) {
+					const result: RawResultData = { rows: [], columns: [] };
+					const rows = db.exec({
+						rowMode: 'array',
+						sql: stmt.sql,
+						bind: stmt.params || [],
+						returnValue: 'resultRows',
+						columnNames: result.columns
+					});
+					result.rows = rows;
+					results.push(result);
+				}
+				return results;
+			});
+		},
+		async transaction(fn: (tx: any) => Promise<void>) {
+			await fn(this);
+		}
+	};
+}
 
 self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 	// console.time('worker onmessage');

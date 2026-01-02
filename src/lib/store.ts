@@ -1,6 +1,7 @@
 import { Ivm } from './ivm.ts';
 import { SqlClient } from './sql-client.ts';
 import { Syncer } from './syncer.ts';
+import { TabSyncSimple } from '$lib/sync/syncers/tab-simple.ts';
 
 export class Store {
 	static async create({ path, type, schema }) {
@@ -31,7 +32,17 @@ export class Store {
 			}
 		});
 
-		return new Store({ db, cache, eventHandlers, events, syncer });
+		// Initialize tab syncer for cross-tab coordination
+		const tabSync = new TabSyncSimple(`crdt-sync-${path}`);
+
+		const store = new Store({ db, cache, eventHandlers, events, syncer, tabSync });
+
+		// Handle incoming events from other tabs - replay them through the same commit logic
+		tabSync.onEvent((event) => {
+			store.commitFromRemote(event);
+		});
+
+		return store;
 	}
 
 	cache;
@@ -39,13 +50,38 @@ export class Store {
 	db;
 	events;
 	syncer;
+	tabSync;
 
-	constructor({ db, cache, eventHandlers, events, syncer }) {
+	constructor({ db, cache, eventHandlers, events, syncer, tabSync }) {
 		this.db = db;
 		this.cache = cache;
 		this.syncer = syncer;
 		this.eventHandlers = eventHandlers;
 		this.events = events;
+		this.tabSync = tabSync;
+	}
+
+	// Process events from other tabs - only update IVM cache, not the database
+	// Since tabs share the same OPFS SQLite database, the originating tab already wrote to it
+	commitFromRemote(
+		event,
+		onSuccess: (result: unknown) => undefined = (_result) => undefined,
+		onError: (error: unknown) => undefined = (_error) => undefined
+	) {
+		try {
+			// Call event handler to update the IVM cache (has side effects)
+			// We discard the SQL string since we don't write to the shared database
+			this.eventHandlers[event.name](this, event.payload);
+
+			// Optionally sync to remote server (not local DB)
+			if (event.synced) {
+				this.syncer.sync(event, null);
+			}
+
+			onSuccess(null);
+		} catch (err) {
+			onError(err);
+		}
 	}
 
 	// process events from this node
@@ -67,6 +103,11 @@ export class Store {
 				// `result` should include the metadata needed to sync
 				// nodeId, hlc, etc...
 				// look to https://github.com/sammynave/habits
+
+				// Broadcast event to other tabs (synchronous, non-blocking)
+				if (this.tabSync) {
+					this.tabSync.broadcastEvent(event);
+				}
 
 				if (event.synced) {
 					this.syncer.sync(event, result);
