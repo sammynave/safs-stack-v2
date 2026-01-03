@@ -31,6 +31,8 @@ export class Store {
 
 		// @TODO schema.sql and migrations
 		await db.run('CREATE TABLE IF NOT EXISTS todos(id TEXT UNIQUE, completed BOOL, text TEXT);');
+		// @TODO and after this, we'd create the triggers `setup-crdt.ts`
+		// if that's how we're going to handle it
 
 		// For now, cache all tables
 		const cache = await Ivm.using({ tables, db });
@@ -67,6 +69,9 @@ export class Store {
 		if (syncer.peer) {
 			syncer.peer.onUpdate(async (changedTables: Set<string>) => {
 				// Refresh IVM for changed tables
+				// @TODO, no, we want to recieve the event from the other tab
+				// then replay it through our data. this is requerying the db
+				// and replacing the IVM data
 				await cache.refresh(Array.from(changedTables));
 			});
 		}
@@ -147,6 +152,14 @@ export class Store {
 				if (this.tabSync) {
 					this.tabSync.broadcastEvent(event);
 				}
+				this.db.emit(`SELECT * FROM crdt_changes`, [], {
+					success: (r) => console.log('crdt_changes', r),
+					failure: (err) => console.error('crdt_changes', err)
+				});
+				this.db.emit(`SELECT * FROM crdt_db_version`, [], {
+					success: (r) => console.log('crdt_db_version', r),
+					failure: (err) => console.error('crdt_db_version', err)
+				});
 
 				// Push CRDT changes to remote server
 				if (event.synced && this.syncer.peer) {
